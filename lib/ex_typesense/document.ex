@@ -16,6 +16,11 @@ defmodule ExTypesense.Document do
   @typedoc since: "0.1.0"
   @type response :: :ok | {:ok, map()} | {:error, map()}
 
+  @spec prep_path(list()) :: binary()
+  defp prep_path(path_elements) do
+    Enum.map(path_elements, &to_string/1) |> Path.join()
+  end
+
   @doc """
   Get a document from a collection.
 
@@ -312,8 +317,7 @@ defmodule ExTypesense.Document do
   def update_document(conn, struct) when is_struct(struct) do
     collection_name = struct.__struct__.__schema__(:source)
 
-    path =
-      Path.join([@collections_path, collection_name, @documents_path, Jason.encode!(struct.id)])
+    path = [@collections_path, collection_name, @documents_path, struct.id] |> prep_path
 
     do_index_document(conn, path, :patch, "update", Jason.encode!(struct))
   end
@@ -321,7 +325,7 @@ defmodule ExTypesense.Document do
   def update_document(conn, document) when is_map(document) do
     id = String.to_integer(document.id)
     collection_name = Map.get(document, :collection_name)
-    path = Path.join([@collections_path, collection_name, @documents_path, Jason.encode!(id)])
+    path = [@collections_path, collection_name, @documents_path, id] |> prep_path
     do_index_document(conn, path, :patch, "update", Jason.encode!(document))
   end
 
@@ -445,12 +449,13 @@ defmodule ExTypesense.Document do
   @spec do_delete_document(Connection.t(), String.t(), integer()) :: response()
   defp do_delete_document(conn, collection_name, document_id) do
     path =
-      Path.join([
+      [
         @collections_path,
         collection_name,
         @documents_path,
-        Jason.encode!(document_id)
-      ])
+        document_id
+      ]
+      |> prep_path
 
     opts = %{
       method: :delete,
